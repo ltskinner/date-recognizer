@@ -293,6 +293,14 @@ def labelMaker(sentences):
                         label[i] = 1
                 except:
                     pass 
+        
+        for i in range(len(text)):
+            try:
+                if label[i+1] == 1 and label[i-1] == 1:
+                    label[i] = 1
+            except:
+                pass
+
 
         # remember to un nlp() the function if using in this instance
         #label2text(label, text)
@@ -378,12 +386,12 @@ def ttSplit(filename, pct):
 # ------------------------------------------------------------------------------------------------------------------------
 
 # 1) Make the labels
-#findText('bucket/', nlp) # LMAO took 30:41 to run ahha
+findText('bucket/', nlp) # LMAO took 30:41 to run ahha
 
 
 
 # 2) Split into testing and training
-ttSplit("labeled-texts.dat", .85)
+ttSplit("filled-texts.dat", .85)
 
 
 
