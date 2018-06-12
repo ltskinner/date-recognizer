@@ -10,11 +10,19 @@ import pickle
 from datetime import datetime
 
 import spacy
-nlp = spacy.load('en')
+nlp = spacy.load('en_vectors_web_lg')
+nlp.add_pipe(nlp.create_pipe('sentencizer'))
+print("[+] spacy imported")
 
 """
 Something to keep in mind abbreviations of months is throwing false positives in labeling
 index filter to see if there is a neighbor label? years ok to not have neighbors
+top priority for this coming week, network works. NETWORK WORKS!
+    unfortunately may need to regex the hell out for his
+
+Also, there are far too many [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+so realiztically, a corpus to find each word isnt super reasonable, so lets tinker with fuzzy and see what we can get
+    honestly, I think some weight is better than ZERO weight
 """
 
 def stFinder(text):
@@ -29,11 +37,38 @@ def stFinder(text):
             return True
     return False
 
+def moAbbr(raw):
+    text = raw.lower()
+    # 'may', 
+    mo = ['jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    # ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    alf = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+    for i in mo:
+        if i in text:
+            if len(text) == 3:
+                return True
+            else:
+                s = text.find(i)
+                if s == 0:
+                    #  0  1  2  3
+                    # [d, e, c, i]
+                    if text[3] not in alf:
+                        return True
+                elif text[s-1] not in alf:
+                    if len(text) == 4:
+                        return True
+                    else:
+                        try:
+                            if text[s+3] not in alf:
+                                return True
+                        except:
+                            return True
+    return False
+
+
 def textMonthFinder(text):
-    mo = [
-        'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
-        'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
-    ]
+    mo = [ 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+    #'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
 
     for i in mo:
         if i in text.lower():
@@ -42,12 +77,12 @@ def textMonthFinder(text):
 
 # Universal activate
 def year4d(text):
-    if len(re.findall(r"[0-9]{4}", text)) > 0:
+    if len(re.findall(r"[0-9]{4}", text)) == 1:
         return True
     return False
 
 def yrmo2d(text):
-    if len(re.findall(r"[0-9]{2}", text)) > 0:
+    if len(re.findall(r"[0-9]{2}", text)) == 1:
         return True
     return False
 
@@ -62,13 +97,17 @@ Rules:
 1) Any 4 digit number is a year, index is activated
 2) Any literal month except for may, index is activated
 3) Need exceptions for '-'
+4) lat longs are thowing it off too lmao
+5) Better word vectors? https://spacy.io/models/en#en_vectors_web_lg
 """
 
 def label2text(label, text):
     buffer = []
     for c, word in enumerate(nlp(text)):
-        if label[c] == 1:
+        if label[c] > .5:
             buffer.append(word.text)
+            #print("-->", word.text)
+            #print(word.vector)
     
     print("--> " + str(' '.join(buffer)).replace(' - ', '-'))
 
@@ -113,6 +152,8 @@ def labelMaker(sentences):
                 label[i] = 1
                 #print("[+] MONTH")
                 #print(">>", word.text)
+            elif moAbbr(word.text):
+                label[i] = 1
             elif stFinder(word.text):
                 label[i] = 1
                 #print("[+] ST")
@@ -150,8 +191,10 @@ def labelMaker(sentences):
                 label[i] = 1
                 #print("[+] MONTH")
                 #print(">>", word.text)
+            elif moAbbr(word.text):
+                label[i] = 1
             elif nodash and stFinder(word.text):
-                if textMonthFinder(text[i-1].text) or textMonthFinder(text[i+1].text):
+                if textMonthFinder(text[i-1].text) or textMonthFinder(text[i+1].text) or moAbbr(text[i-1].text) or moAbbr(text[i+1].text) or text[i-1].text.lower() == 'may' or text[i+1].text.lower() == 'may':
                     label[i] = 1
                     #print("[+] ST")
                     #print(">>", word.text)
@@ -198,11 +241,17 @@ def labelMaker(sentences):
                     label[i-1] = 1
                     #print("[+] XX-XXXX")
                     #print(">>", text[i-1].text)
+                elif moAbbr(text[i-1].text):
+                    label[i] = 1
+                    label[i-1] = 1
                 if textMonthFinder(text[i+1].text):
                     label[i] = 1
                     label[i+1] = 1
                     #print("[+] XX-XXXX")
                     #print(">>", text[i+1].text)
+                elif moAbbr(text[i+1].text):
+                    label[i] = 1
+                    label[i+1] = 1
                 
             elif year4d(word.text):
                 label[i] = 1
@@ -221,6 +270,20 @@ def labelMaker(sentences):
         for i in range(len(text)):
             if text[i].text in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
                 try:
+                    if label[i+1] == 1 or text[i+1].text.lower() == 'may':
+                        label[i] = 1
+                except:
+                    pass
+                try:
+                    if label[i-1] == 1 or text[i-1].text.lower() == 'may':
+                        label[i] = 1
+                except:
+                    pass 
+
+
+        for i in range(len(text)):
+            if text[i].text.lower() == "may":
+                try:
                     if label[i+1] == 1:
                         label[i] = 1
                 except:
@@ -230,6 +293,7 @@ def labelMaker(sentences):
                         label[i] = 1
                 except:
                     pass 
+
         # remember to un nlp() the function if using in this instance
         #label2text(label, text)
 
@@ -270,15 +334,23 @@ def findText(rootdir, nlp):
             """
 
     labeled = labelMaker(sentences)
+
     texts = [sent.text for sent in sentences]
 
     saveframe = []
+    zeroframe = []
     for i in range(len(labeled)):
-        saveframe.append([labeled[i], texts[i]])
+        if 1 in labeled[i]:
+            saveframe.append([labeled[i], texts[i]])
+        else:
+            zeroframe.append([labeled[i], texts[i]])
+
 
     print("Time:", datetime.now() - start)
-
     pickle.dump(saveframe, open("labeled-texts.dat", 'wb'), -1)
+    pickle.dump(zeroframe, open("zeros.dat", 'wb'), -1)
+
+    print("Labeled:", len(saveframe), "Zeros:", len(zeroframe), "pct:", len(saveframe)/(len(saveframe) + len(zeroframe)))
 
 
 
