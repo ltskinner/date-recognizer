@@ -76,8 +76,9 @@ def textMonthFinder(text):
     return False
 
 # Universal activate
-def year4d(text):
-    if len(re.findall(r"[0-9]{4}", text)) == 1:
+def year4d(text): 
+    # ensuring nothing longer than 4 dig date passes now
+    if len(re.findall(r"[0-9]{4}", text)) == 1 and len(re.findall(r"[0-9]{5}", text)) == 0:
         return True
     return False
 
