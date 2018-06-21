@@ -67,7 +67,7 @@ def moAbbr(raw):
 
 
 def textMonthFinder(text):
-    mo = [ 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+    mo = [ 'january', 'february', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
     #'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
 
     for i in mo:
@@ -294,6 +294,20 @@ def labelMaker(sentences):
                         label[i] = 1
                 except:
                     pass 
+
+        for i in range(len(text)):
+            if text[i].text.lower() == 'march':
+                try:
+                    if label[i+1] == 1:
+                        label[i] = 1
+                except:
+                    pass
+                try:
+                    if label[i-1] == 1:
+                        label[i] = 1
+                except:
+                    pass
+
         
         for i in range(len(text)):
             try:
